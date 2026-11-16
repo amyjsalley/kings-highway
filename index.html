@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The King's Highway · Mom's 70th Road Trip</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#120a16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="King's Highway">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Righteous&family=Monoton&display=swap" rel="stylesheet">
+<style>
+:root{
+--navy:#14213d; --navy2:#1f3160; --gold:#e3b23c; --gold-soft:#fbf1d6;
+--ink:#1b1f2a; --muted:#6b7180; --line:#e7e3da; --bg:#f6f3ec; --card:#ffffff;
+--green:#2f8f5b; --green-soft:#e3f3ea;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:520px;margin:0 auto;padding:0 0 48px}
+header.hero{background:linear-gradient(160deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;padding:28px 20px 64px;border-radius:0 0 28px 28px}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:600}
+h1{font-family:Fraunces,Georgia,serif;font-size:30px;line-height:1.1;margin:8px 0 6px}
+.sub{font-size:14px;color:#c9d0e2}
+.card{background:var(--card);border-radius:20px;box-shadow:0 6px 24px rgba(20,33,61,.08);margin:0 16px 16px;padding:18px}
+.status{margin-top:-44px;position:relative}
+.label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.where{font-family:Fraunces,Georgia,serif;font-size:24px;line-height:1.2;margin:6px 0 4px}
+.when{font-size:14px;color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--green);background:var(--green-soft);padding:4px 10px;border-radius:99px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite}
+.live.off{color:var(--muted);background:#efede8}.live.off i{background:var(--muted);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,143,91,.5)}70%{box-shadow:0 0 0 8px rgba(47,143,91,0)}100%{box-shadow:0 0 0 0 rgba(47,143,91,0)}}
+.bar{height:10px;background:#efeae0;border-radius:99px;overflow:hidden;margin:16px 0 8px}
+.bar b{display:block;height:100%;background:linear-gradient(90deg,var(--gold),#f0c75e);border-radius:99px;transition:width .6s}
+.barmeta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.next{display:flex;gap:12px;align-items:flex-start;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.next .ico{flex:none;width:36px;height:36px;border-radius:12px;background:var(--gold-soft);display:grid;place-items:center;font-size:18px}
+.next .t{font-weight:600}
+.next .s{font-size:13px;color:var(--muted);margin-top:2px}
+.plan{font-size:13px;color:var(--muted);margin-top:12px;line-height:1.45}
+.note{background:var(--gold-soft);border-radius:16px;padding:12px 14px;margin-top:14px;font-size:15px;line-height:1.4}
+.note small{display:block;color:#8a6d1f;font-size:12px;margin-top:4px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 12px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;border:0;background:#fff;color:var(--ink);border-radius:14px;padding:10px 14px;font:600 14px Inter,sans-serif;box-shadow:0 2px 8px rgba(20,33,61,.06);cursor:pointer;text-align:left}
+.tab span{display:block;font-weight:500;font-size:11px;color:var(--muted);margin-top:2px}
+.tab.on{background:var(--navy);color:#fff}.tab.on span{color:#c9d0e2}
+.dayhead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+.dayhead h2{font-family:Fraunces,Georgia,serif;font-size:20px;margin:0}
+.btn{border:0;border-radius:12px;padding:10px 14px;font:600 14px Inter,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.map{background:var(--navy);color:#fff}
+.btn.here{background:var(--gold);color:var(--navy)}
+.btn.ghost{background:#efede8;color:var(--ink)}
+.btn:disabled{opacity:.5}
+.daysum{font-size:13px;color:var(--muted);margin:0 0 10px}
+ol.stops{list-style:none;margin:0;padding:0}
+.stop{display:flex;gap:12px;position:relative;padding:12px 0}
+.stop+.stop{border-top:1px solid var(--line)}
+.dot{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:#fff;display:grid;place-items:center;font-size:14px;margin-top:2px}
+.stop.done .dot{background:var(--green);border-color:var(--green);color:#fff}
+.stop.now .dot{border-color:var(--gold);background:var(--gold-soft)}
+.body{flex:1;min-width:0}
+.time{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.name{font-weight:600;font-size:16px;margin:2px 0}
+.place{font-size:13px;color:var(--muted)}
+.tip{font-size:13px;color:#5d5547;background:#faf7f0;border-radius:10px;padding:8px 10px;margin-top:8px;line-height:1.4}
+.seen{font-size:13px;color:var(--green);font-weight:600;margin-top:6px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.actions a,.actions button{font-size:13px;padding:8px 12px}
+.owner{border:2px dashed var(--gold)}
+textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:12px;padding:10px;font:15px Inter,sans-serif;resize:vertical}
+.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.foot{font-size:12px;color:var(--muted);text-align:center;padding:8px 24px;line-height:1.5}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.confirm{display:none;margin-top:10px;background:#fff6e0;border-radius:12px;padding:10px;font-size:13px}
+.confirm.show{display:block}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.gal.strip{display:flex;overflow-x:auto;gap:8px;scrollbar-width:none}
+.gal.strip::-webkit-scrollbar{display:none}
+.gal.strip .m{flex:none;width:110px}
+.m{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#e9e4d8;border:0;padding:0;cursor:pointer}
+.m img,.m video{width:100%;height:100%;object-fit:cover;display:block}
+.m .play{position:absolute;inset:auto 6px 6px auto;background:rgba(20,33,61,.75);color:#fff;font-size:11px;border-radius:8px;padding:2px 6px}
+.m .miss{display:grid;place-items:center;height:100%;font-size:11px;color:var(--muted);padding:6px;text-align:center}
+.upl{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.upl select,.upl input[type=text]{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;font:15px Inter,sans-serif;margin-top:8px;background:#fff}
+.prog{font-size:13px;color:var(--muted);margin-top:8px}
+.lb{position:fixed;inset:0;background:rgba(10,14,26,.94);display:none;flex-direction:column;justify-content:center;align-items:center;padding:16px;z-index:10}
+.lb.show{display:flex}
+.lb img,.lb video{max-width:100%;max-height:72vh;border-radius:12px}
+.lb .cap{color:#fff;font-size:15px;margin-top:12px;text-align:center;max-width:480px}
+.lb .meta{color:#aab3c8;font-size:12px;margin-top:4px}
+.lb .row{justify-content:center}
+.field{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font:15px Inter,sans-serif;margin-top:8px;background:#fff}
+.prefs{display:grid;gap:8px}
+.prefs label{display:flex;gap:10px;align-items:center;font-size:15px;background:#faf3e2;border-radius:12px;padding:10px 12px}
+.prefs input{width:20px;height:20px;accent-color:#c2186b}
+.by{font-size:11px;position:absolute;left:6px;bottom:6px;background:rgba(18,10,22,.75);color:#f7dc84;border-radius:8px;padding:2px 6px;max-width:80%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.login{position:fixed;inset:0;background:linear-gradient(160deg,var(--navy),var(--navy2));display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+.login[hidden]{display:none}
+.lcard{background:#fff;border-radius:24px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.lcard input{width:100%;border:1px solid var(--line);border-radius:12px;padding:14px;font:17px Inter,sans-serif}
+.out{background:none;border:0;color:#c9d0e2;font:500 13px Inter,sans-serif;text-decoration:underline;cursor:pointer;padding:0;margin-top:10px}
+/* ===== Elvis-era theme: gold lame, black velvet, marquee lights ===== */
+:root{--navy:#120a16;--navy2:#2a1230;--gold:#e8bf4a;--gold-soft:#fbf0cf;--ink:#1d1420;--muted:#6f6475;--line:#eadfc9;--bg:#0f0812;--pink:#ff4fa3;--teal:#3fe0d0}
+body{background:
+radial-gradient(1px 1px at 12% 18%,rgba(255,240,200,.55),transparent 60%),
+radial-gradient(1px 1px at 72% 8%,rgba(255,240,200,.5),transparent 60%),
+radial-gradient(1.5px 1.5px at 40% 60%,rgba(255,240,200,.35),transparent 60%),
+radial-gradient(1px 1px at 88% 44%,rgba(255,240,200,.45),transparent 60%),
+radial-gradient(1px 1px at 22% 82%,rgba(255,240,200,.4),transparent 60%),
+radial-gradient(120% 60% at 50% 0%,#3a1440 0%,#160a1a 55%,#0f0812 100%) fixed}
+h1,.where,.dayhead h2{font-family:Righteous,Georgia,sans-serif;letter-spacing:.01em}
+header.hero{position:relative;background:linear-gradient(180deg,#1b0c20,#2a1230);border-radius:0 0 28px 28px;padding:34px 22px 70px;text-align:center;overflow:hidden;border-bottom:3px solid var(--gold)}
+header.hero::before{content:"";position:absolute;inset:10px;border-radius:20px;pointer-events:none;
+background:
+radial-gradient(circle,#ffe7a3 0 2.4px,transparent 3px) 0 0/18px 18px repeat-x,
+radial-gradient(circle,#ffe7a3 0 2.4px,transparent 3px) 0 100%/18px 18px repeat-x,
+radial-gradient(circle,#ffe7a3 0 2.4px,transparent 3px) 0 0/18px 18px repeat-y,
+radial-gradient(circle,#ffe7a3 0 2.4px,transparent 3px) 100% 0/18px 18px repeat-y;
+filter:drop-shadow(0 0 4px #ffc94d);animation:bulbs 1.2s steps(2) infinite}
+@keyframes bulbs{50%{opacity:.55}}
+.eyebrow{color:var(--pink);text-shadow:0 0 8px rgba(255,79,163,.6)}
+.hero h1{font-family:Monoton,Righteous,sans-serif;font-weight:400;font-size:40px;line-height:1.05;margin:12px 0 8px;
+background:linear-gradient(180deg,#fff6d6 0%,#f3cf63 38%,#b8862b 55%,#f7dc84 75%,#c9952f 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+filter:drop-shadow(0 2px 0 rgba(0,0,0,.4))}
+.hero .sub{color:#f3e3bd}
+.card{background:#fffaf0;border:1px solid rgba(232,191,74,.55);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.status{border:2px solid var(--gold)}
+.status::after{content:"";position:absolute;top:-22px;left:50%;margin-left:-22px;width:44px;height:44px;border-radius:50%;
+background:radial-gradient(circle,var(--pink) 0 5px,#111 6px 7px,#2b2b2b 8px,#111 9px,#222 12px,#111 13px,#2a2a2a 16px,#111 17px,#1a1a1a 22px);
+box-shadow:0 4px 12px rgba(0,0,0,.5);animation:spin 2.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bar{background:#2a1a2e;height:12px}
+.bar b{background:linear-gradient(90deg,#b8862b,#f7dc84,#e8bf4a,#fff1b8,#c9952f);background-size:200% 100%;animation:shine 3s linear infinite;box-shadow:0 0 10px rgba(232,191,74,.7)}
+@keyframes shine{to{background-position:200% 0}}
+.live{color:#0e6b55;background:#d8faf2}.live i{background:var(--teal)}
+.tabs .tab{background:#24122a;color:#f3e3bd;box-shadow:none;border:1px solid rgba(232,191,74,.35)}
+.tabs .tab span{color:#bfa9c6}
+.tabs .tab.on{background:linear-gradient(180deg,#f7dc84,#c9952f);color:#1d1420;border-color:transparent}
+.tabs .tab.on span{color:#3d2a12}
+.btn.map{background:#1d1420;color:var(--gold)}
+.btn.here{background:linear-gradient(180deg,#f7dc84,#d9a63c);color:#1d1420;box-shadow:0 2px 0 #8a6420}
+.stop.done .dot{background:var(--pink);border-color:var(--pink)}
+.stop.now .dot{border-color:var(--gold);box-shadow:0 0 0 4px rgba(232,191,74,.25)}
+.seen{color:#c2186b}
+.note{background:#1d1420;color:#fff3cf;border:1px solid var(--gold)}
+.note small{color:var(--gold)}
+.next .ico{background:#1d1420;color:#fff}
+.foot{color:#bfa9c6}
+.foot b{color:var(--gold);font-family:Righteous,sans-serif;font-weight:400}
+.login{background:radial-gradient(120% 70% at 50% 0%,#3a1440,#0f0812)}
+.lcard{background:#fffaf0;border:2px solid var(--gold);text-align:center}
+.lcard h1{font-family:Monoton,Righteous,sans-serif;font-weight:400;font-size:34px;color:#c2186b!important}
+.owner{border:2px dashed var(--pink)}
+.toast{background:#1d1420;color:var(--gold);border:1px solid var(--gold)}
+@media (prefers-reduced-motion:reduce){header.hero::before,.status::after,.bar b{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+<div class="eyebrow">Mom's belated 70th · live from the road</div>
+<h1>The King's Highway</h1>
+<div class="sub" id="subtitle"></div>
+<button class="out" id="logout" type="button">Sign out</button>
+</header>
+<section class="card status" aria-live="polite">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+<div class="label" id="statusLabel">Where they are</div>
+<div class="live off" id="live"><i></i><span id="liveText">Connecting</span></div>
+</div>
+<div class="where" id="where">Loading the trip…</div>
+<div class="when" id="when"></div>
+<div class="bar"><b id="bar" style="width:0%"></b></div>
+<div class="barmeta"><span id="miles"></span><span id="pct">0%</span></div>
+<div id="mapBox" hidden>
+<div id="map" style="height:220px;border-radius:16px;margin-top:14px;overflow:hidden;border:1px solid var(--line)"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px">
+<div style="font-size:13px;color:var(--muted)" id="locMeta"></div>
+<a class="btn ghost" id="locLink" target="_blank" rel="noopener" style="font-size:13px;padding:8px 12px">Open in Maps</a>
+</div>
+</div>
+<div id="noteBox"></div>
+<div class="next" id="next"></div>
+<div class="plan" id="plan"></div>
+</section>
+<section class="card owner" id="ownerCard" hidden>
+<div class="label">Amy's controls</div>
+<p style="margin:6px 0 8px;font-size:14px;color:var(--muted)">Tap <b>We're here</b> on a stop below when you arrive. Leave a quick note for the family anytime.</p>
+<textarea id="noteInput" maxlength="240" placeholder="Running about 30 minutes behind, all good!"></textarea>
+<div class="row">
+<button class="btn here" id="saveNote">Post note</button>
+<button class="btn ghost" id="clearNote">Clear note</button>
+</div>
+<div class="upl">
+<div class="label">Live location</div>
+<p style="margin:6px 0 0;font-size:14px;color:var(--muted)">While this page is open, your location updates every couple of minutes and you're checked in automatically at each stop. iPhones pause it when the screen locks.</p>
+<div class="row">
+<button class="btn here" id="trackBtn">&#128205; Start live location</button>
+</div>
+<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px"><input type="checkbox" id="wakeChk"> Keep screen on (best on a car charger)</label>
+<div class="prog" id="trackStat">Live location is off.</div>
+</div>
+</section>
+<section class="card" id="shareCard" hidden>
+<div class="dayhead"><h2>Add to the album</h2></div>
+<p class="daysum" id="shareIntro">Share a photo or short video for Mom. Everyone with the passcode will see it.</p>
+<input type="text" id="uplName" maxlength="40" placeholder="Your name" class="field">
+<select id="uplStop" aria-label="Which stop" class="field"></select>
+<input type="text" id="uplCap" maxlength="160" placeholder="Caption (optional)" class="field">
+<div class="row"><button class="btn here" id="uplBtn">&#128247; Choose photos or video</button></div>
+<input type="file" id="uplFile" accept="image/*,video/*" multiple hidden>
+<div class="prog" id="uplProg">Photos are resized automatically. Keep videos short, about 15 seconds.</div>
+</section>
+<section class="card" id="notifyCard" hidden>
+<div class="dayhead"><h2>Get notified</h2></div>
+<p class="daysum">Pick what you want a phone alert for.</p>
+<div id="prefList" class="prefs"></div>
+<div class="row"><button class="btn here" id="notifyBtn">&#128276; Turn on notifications</button><button class="btn ghost" id="notifyTest" hidden>Send a test</button></div>
+<div class="prog" id="notifyStat"></div>
+</section>
+<section class="card" id="momentsCard" hidden>
+<div class="dayhead"><h2>Moments with Mom</h2><span class="label" id="momentCount"></span></div>
+<div class="gal strip" id="latest"></div>
+</section>
+<nav class="tabs" id="tabs" aria-label="Trip days"></nav>
+<section class="card" id="day"></section>
+<p class="foot">Times are local where they are, and planned times are estimates. Check-in times show in your own time zone. Updates appear on their own every 30 seconds.<br><b>Thank you, thank you very much.</b></p>
+</div>
+<div class="toast" id="toast"></div>
+<div class="login" id="login">
+<form class="lcard" id="loginForm">
+<div class="eyebrow">Mom's 70th birthday road trip</div>
+<h1 style="margin:8px 0 6px">Welcome to the show</h1>
+<p style="color:var(--muted);font-size:15px;margin:0 0 14px">Enter the family passcode to follow along.</p>
+<input id="code" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode">
+<button class="btn here" style="width:100%;justify-content:center;margin-top:10px;padding:14px" type="submit">Take me to the show</button>
+<div id="loginErr" style="color:#b3261e;font-size:14px;margin-top:10px;min-height:18px"></div>
+</form>
+</div>
+<div class="lb" id="lb" role="dialog" aria-modal="true">
+<div id="lbMedia"></div>
+<div class="cap" id="lbCap"></div>
+<div class="meta" id="lbMeta"></div>
+<div class="row" style="margin-top:14px">
+<button class="btn ghost" id="lbClose">Close</button>
+<button class="btn ghost" id="lbDel" hidden>Remove</button>
+</div>
+<div class="confirm" id="lbConfirm" style="max-width:320px;text-align:center">Remove this for everyone? It can&#8217;t be undone.
+<div class="row" style="justify-content:center"><button class="btn here" id="lbYes">Remove</button><button class="btn ghost" id="lbNo">Keep</button></div>
+</div>
+</div>
+<script>
+const OFF = {AZ:'-07:00', MT:'-07:00', CT:'-06:00', ET:'-05:00'};
+const LBL = {AZ:'Arizona', MT:'Mountain', CT:'Central', ET:'Eastern'};
+const G = 'https://www.google.com/maps/';
+const q = s => encodeURIComponent(s).replace(/%20/g,'+');
+const search = s => G + 'search/?api=1&query=' + q(s);
+const dir = (o,d,w,mode) => G + 'dir/?api=1&origin=' + q(o) + '&destination=' + q(d) + (w ? '&waypoints=' + w.map(q).join('%7C') : '') + '&travelmode=' + (mode||'driving');
+let DAYS = [], STOPS = [], TOTAL = 0;
+const dayOf = id => DAYS.find(d => d.id === id);
+const planned = s => new Date(dayOf(s.day).date + 'T' + s.t + ':00' + OFF[s.tz]);
+function clock(t){ let [h,m]=t.split(':').map(Number); const ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+String(m).padStart(2,'0')+' '+ap; }
+const plannedLabel = s => '~' + clock(s.t) + ' ' + LBL[s.tz];
+function ago(d){ const m=Math.round((Date.now()-d)/60000); if(m<1) return 'just now'; if(m<60) return m+' min ago'; const h=Math.floor(m/60); if(h<24) return h+' hr'+(h>1?'s':'')+(m%60?' '+(m%60)+' min':'')+' ago'; const dd=Math.floor(h/24); return dd+' day'+(dd>1?'s':'')+' ago'; }
+function yourTime(d){ return d.toLocaleString([], {weekday:'short', hour:'numeric', minute:'2-digit', timeZoneName:'short'}); }
+function el(tag, cls, text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+let state = {checkins:{}, note:null};
+let dbOk = false, synced = false, canWrite = false, ref = null, busy = false;
+let selectedDay = null;
+function planIndex(now){ let idx=-1; STOPS.forEach((s,i)=>{ if(planned(s)<=now) idx=i; }); return idx; }
+function lastChecked(){ let idx=-1; STOPS.forEach((s,i)=>{ if(state.checkins && state.checkins[s.id]) idx=i; }); return idx; }
+function renderStatus(){
+if (!STOPS.length) return -1;
+const now = new Date();
+const li = lastChecked();
+const pi = planIndex(now);
+const start = planned(STOPS[0]);
+const where = document.getElementById('where'), when = document.getElementById('when');
+const next = document.getElementById('next'), plan = document.getElementById('plan');
+const label = document.getElementById('statusLabel');
+next.replaceChildren(); plan.textContent='';
+let posIdx = li;
+if (li >= 0){
+const s = STOPS[li], at = new Date(state.checkins[s.id]);
+label.textContent = s.id==='home' ? 'Trip complete' : 'Last check-in';
+where.textContent = s.ico + ' ' + s.name;
+when.textContent = s.place + ' · ' + ago(at) + ' (' + yourTime(at) + ')';
+} else if (now < start){
+label.textContent = 'Countdown';
+const days = Math.ceil((start-now)/86400000);
+where.textContent = days<=1 ? 'They roll out tomorrow morning' : 'They roll out in ' + days + ' days';
+when.textContent = 'First stop: ' + STOPS[0].place + ', ' + yourTime(start) + ' your time';
+} else {
+label.textContent = 'Where the plan puts them';
+posIdx = pi;
+const s = STOPS[pi], n = STOPS[pi+1];
+where.textContent = n && n.day===s.day && s.ico==='\u{1F697}' ? '\u{1F697} Driving toward ' + n.place.split(' · ')[0] : s.ico + ' ' + s.name;
+when.textContent = 'No check-ins yet. This is based on the schedule.';
+}
+const mi = posIdx>=0 ? STOPS[posIdx].mi : 0;
+const pct = Math.round(mi/TOTAL*100);
+document.getElementById('bar').style.width = pct + '%';
+document.getElementById('miles').textContent = mi.toLocaleString() + ' of ' + TOTAL.toLocaleString() + ' miles';
+document.getElementById('pct').textContent = pct + '%';
+const n = STOPS[Math.max(posIdx,-1)+1];
+if (n){
+next.append(el('div','ico',n.ico));
+const b = el('div'); b.append(el('div','label','Up next'), el('div','t',n.name), el('div','s', plannedLabel(n) + ' · ' + dayOf(n.day).tab));
+next.append(b);
+}
+if (li >= 0 && pi > li && pi < STOPS.length){
+plan.textContent = 'By the schedule they’d be near ' + STOPS[pi].place.split(' · ')[0] + ' by now. Times are estimates, so a gap is normal.';
+}
+const nb = document.getElementById('noteBox'); nb.replaceChildren();
+if (state.note && state.note.text){
+const box = el('div','note', '\u{1F4AC} ' + state.note.text);
+if (state.note.at) box.append(el('small', null, 'From Amy · ' + ago(new Date(state.note.at))));
+nb.append(box);
+}
+const live = document.getElementById('live'), lt = document.getElementById('liveText');
+if (dbOk && synced){ live.className='live'; lt.textContent='Live'; }
+else if (dbOk){ live.className='live off'; lt.textContent='Connecting'; }
+else { live.className='live off'; lt.textContent='Schedule only'; }
+return posIdx;
+}
+function renderTabs(){
+const tabs = document.getElementById('tabs'); tabs.replaceChildren();
+DAYS.forEach(d => {
+const b = el('button','tab' + (d.id===selectedDay?' on':''), d.tab);
+b.append(el('span', null, d.title));
+b.onclick = () => { selectedDay = d.id; renderTabs(); renderDay(); };
+tabs.append(b);
+});
+}
+function renderDay(){
+const d = dayOf(selectedDay), box = document.getElementById('day'); box.replaceChildren();
+const head = el('div','dayhead'); head.append(el('h2', null, d.title));
+const m = el('a','btn map','\u{1F5FA} Day route'); m.href = d.map; m.target='_blank'; m.rel='noopener';
+head.append(m); box.append(head, el('p','daysum', d.sum));
+const li = lastChecked();
+const ol = el('ol','stops');
+STOPS.forEach((s,i) => {
+if (s.day !== d.id) return;
+const at = state.checkins && state.checkins[s.id];
+const li_ = el('li','stop' + (at ? ' done' : '') + (i===li+1 ? ' now' : ''));
+li_.append(el('div','dot', at ? '✓' : s.ico));
+const b = el('div','body');
+b.append(el('div','time', s.planNote || plannedLabel(s)), el('div','name', s.name), el('div','place', s.place));
+if (s.tip) b.append(el('div','tip', s.tip));
+if (at) b.append(el('div','seen', 'Checked in ' + yourTime(new Date(at))));
+const ms = moments.filter(x => x.stopId === s.id);
+if (ms.length){ const g = el('div','gal'); ms.forEach(x => g.append(thumb(x))); b.append(g); }
+const act = el('div','actions');
+const a = el('a','btn ghost','Directions'); a.href = s.map; a.target='_blank'; a.rel='noopener'; act.append(a);
+if (canWrite && dbOk){
+if (!at){
+const h = el('button','btn here',"We're here"); h.onclick = () => checkIn(s.id); act.append(h);
+} else if (i === li){
+const u = el('button','btn ghost','Undo'); u.onclick = () => undo(s.id); act.append(u);
+}
+}
+b.append(act); li_.append(b); ol.append(li_);
+});
+box.append(ol);
+}
+/* ---------- Moments: photos and video ---------- */
+let moments = [];
+const stopById = id => STOPS.find(s => s.id === id);
+function thumb(x){
+const b = el('button','m'); b.setAttribute('aria-label', x.caption || (x.kind === 'video' ? 'Video' : 'Photo'));
+const src = '/media/' + x.id;
+const miss = () => { b.replaceChildren(el('div','miss','Can’t show this one')); };
+if (x.kind === 'video'){
+const v = document.createElement('video'); v.src = src + '#t=0.1'; v.muted = true; v.playsInline = true; v.preload = 'metadata'; v.onerror = miss;
+b.append(v, el('span','play','\u25B6 Video'));
+if (x.by && x.by !== 'Amy') b.append(el('span','by', x.by));
+} else {
+const i = document.createElement('img'); i.src = src; i.loading = 'lazy'; i.alt = x.caption || 'Photo from the trip'; i.onerror = miss; b.append(i);
+if (x.by && x.by !== 'Amy') b.append(el('span','by', x.by));
+}
+b.onclick = () => openLb(x);
+return b;
+}
+let shownMoments = '';
+function renderMoments(){
+const key = moments.map(m => m.id).join(',');
+if (key === shownMoments) return; shownMoments = key;
+const card = document.getElementById('momentsCard'), strip = document.getElementById('latest');
+card.hidden = moments.length === 0; strip.replaceChildren();
+document.getElementById('momentCount').textContent = moments.length ? moments.length + (moments.length === 1 ? ' moment' : ' moments') : '';
+[...moments].reverse().slice(0, 15).forEach(x => strip.append(thumb(x)));
+}
+let lbItem = null;
+function openLb(x){
+lbItem = x;
+const m = document.getElementById('lbMedia'); m.replaceChildren();
+const src = '/media/' + x.id;
+if (x.kind === 'video'){ const v = document.createElement('video'); v.src = src; v.controls = true; v.playsInline = true; v.autoplay = true; m.append(v); }
+else { const i = document.createElement('img'); i.src = src; i.alt = x.caption || 'Photo from the trip'; m.append(i); }
+document.getElementById('lbCap').textContent = x.caption || '';
+const s = stopById(x.stopId);
+document.getElementById('lbMeta').textContent = 'From ' + (x.by || 'Amy') + ' · ' + (s ? s.name + ' · ' : '') + (x.at ? yourTime(new Date(x.at)) : '');
+document.getElementById('lbDel').hidden = !canWrite;
+document.getElementById('lbConfirm').classList.remove('show');
+document.getElementById('lb').classList.add('show');
+}
+function closeLb(){ document.getElementById('lb').classList.remove('show'); document.getElementById('lbMedia').replaceChildren(); lbItem = null; }
+document.getElementById('lbClose').onclick = closeLb;
+document.getElementById('lb').addEventListener('click', e => { if (e.target.id === 'lb') closeLb(); });
+document.getElementById('lbDel').onclick = () => document.getElementById('lbConfirm').classList.add('show');
+document.getElementById('lbNo').onclick = () => document.getElementById('lbConfirm').classList.remove('show');
+document.getElementById('lbYes').onclick = async () => {
+const x = lbItem; if (!x) return;
+const r = await api('DELETE', '/api/moments/' + x.id);
+if (r) { closeLb(); toast('Removed.'); refresh(); } else toast('Couldn’t remove it. Try again.');
+};
+function fillStopPicker(){
+const sel = document.getElementById('uplStop'); const keep = sel.value; sel.replaceChildren();
+if (!canWrite){ const o = document.createElement('option'); o.value = ''; o.textContent = 'Birthday wishes from home'; sel.append(o); }
+DAYS.forEach(d => { const g = document.createElement('optgroup'); g.label = d.tab + ' · ' + d.title;
+STOPS.filter(s => s.day === d.id).forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; g.append(o); });
+sel.append(g); });
+const li = lastChecked(), pi = planIndex(new Date());
+sel.value = keep || (canWrite ? STOPS[li >= 0 ? li : Math.max(pi, 0)].id : '');
+}
+async function shrink(file){
+try {
+const bmp = await createImageBitmap(file);
+const max = 2048, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+const c = document.createElement('canvas'); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+const out = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+if (out) return out;
+} catch(_){}
+return ['image/jpeg','image/png','image/webp','image/gif'].includes(file.type) ? file : null;
+}
+const MAX = 24 * 1024 * 1024;
+async function uploadFiles(files){
+const prog = document.getElementById('uplProg'), btn = document.getElementById('uplBtn');
+const stopId = document.getElementById('uplStop').value, cap = document.getElementById('uplCap').value.trim();
+let ok = 0; const skipped = [];
+btn.disabled = true;
+for (let i = 0; i < files.length; i++){
+const f = files[i]; prog.textContent = 'Uploading ' + (i + 1) + ' of ' + files.length + '…';
+let blob, type;
+if (f.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(f.name)){
+blob = f; type = f.type === 'video/webm' ? 'video/webm' : f.type === 'video/mp4' ? 'video/mp4' : 'video/quicktime';
+} else {
+blob = await shrink(f); type = blob && blob.type ? blob.type : 'image/jpeg';
+if (!blob){ skipped.push(f.name + ' couldn’t be read'); continue; }
+}
+if (blob.size > MAX){ skipped.push(f.name + ' is too long (keep clips under about 15 seconds)'); continue; }
+try {
+const r = await fetch('/api/moments?stopId=' + encodeURIComponent(stopId) + '&caption=' + encodeURIComponent(cap) + '&by=' + encodeURIComponent(document.getElementById('uplName').value.trim()), {method:'POST', headers:{'Content-Type': type}, body: blob, credentials:'same-origin'});
+if (r.ok) ok++; else { const j = await r.json().catch(() => ({})); skipped.push(f.name + ': ' + (j.error || 'didn’t upload')); }
+} catch(_){ skipped.push(f.name + ': no signal, try again'); }
+}
+btn.disabled = false;
+document.getElementById('uplCap').value = '';
+prog.textContent = (ok ? ok + ' added! ' : '') + (skipped.length ? 'Skipped: ' + skipped.join('; ') + '.' : 'The family can see them now.');
+refresh();
+}
+document.getElementById('uplBtn').onclick = () => {
+const n = document.getElementById('uplName');
+if (!canWrite && !n.value.trim()){ n.focus(); toast('Add your name first.'); return; }
+try { localStorage.setItem('name', n.value.trim()); } catch(_){}
+document.getElementById('uplFile').click();
+};
+try { document.getElementById('uplName').value = localStorage.getItem('name') || ''; } catch(_){}
+document.getElementById('uplFile').onchange = e => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) uploadFiles(fs); };
+/* ---------- Live location ---------- */
+let loc = null, lmap = null, lmarker = null;
+function miles(aLat, aLon, bLat, bLon){ const R = 3958.8, t = x => x * Math.PI / 180;
+const dLat = t(bLat - aLat), dLon = t(bLon - aLon);
+const h = Math.sin(dLat/2)**2 + Math.cos(t(aLat)) * Math.cos(t(bLat)) * Math.sin(dLon/2)**2; return 2 * R * Math.asin(Math.sqrt(h)); }
+function nearText(l){
+let best = null; STOPS.forEach(st => { if (typeof st.lat !== 'number') return; const d = miles(l.lat, l.lon, st.lat, st.lon); if (!best || d < best.d) best = {d, st}; });
+if (!best) return '';
+const place = best.st.place.split(' · ')[0];
+return best.d < 3 ? 'In ' + place : 'About ' + Math.round(best.d) + ' miles from ' + place;
+}
+const fresh = l => l && l.at && (Date.now() - new Date(l.at)) < 6 * 3600000;
+function renderLoc(){
+const box = document.getElementById('mapBox');
+if (!fresh(loc)){ box.hidden = true; return; }
+box.hidden = false;
+const live = (Date.now() - new Date(loc.at)) < 15 * 60000;
+document.getElementById('locMeta').textContent = (live ? '\u{1F4CD} Live · ' : '\u{1F4CD} Last seen · ') + nearText(loc) + ' · ' + ago(new Date(loc.at));
+document.getElementById('locLink').href = 'https://www.google.com/maps/search/?api=1&query=' + loc.lat + '%2C' + loc.lon;
+if (!window.L) return;
+if (!lmap){
+lmap = L.map('map', {zoomControl: false, attributionControl: true}).setView([loc.lat, loc.lon], 9);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18, attribution: '&copy; OpenStreetMap'}).addTo(lmap);
+const icon = L.divIcon({className: '', html: '<div style="width:22px;height:22px;border-radius:50%;background:#ff4fa3;border:3px solid #e8bf4a;box-shadow:0 0 0 6px rgba(255,79,163,.25)"></div>', iconSize: [22, 22], iconAnchor: [11, 11]});
+lmarker = L.marker([loc.lat, loc.lon], {icon}).addTo(lmap);
+const route = STOPS.filter(st => typeof st.lat === 'number').map(st => [st.lat, st.lon]);
+L.polyline(route, {color: '#e8bf4a', weight: 3, dashArray: '6 6', opacity: .9}).addTo(lmap);
+} else { lmarker.setLatLng([loc.lat, loc.lon]); lmap.panTo([loc.lat, loc.lon]); }
+setTimeout(() => lmap.invalidateSize(), 50);
+}
+let watchId = null, lastSent = {t: 0, lat: 0, lon: 0}, wakeLock = null;
+function setTrackUI(on, msg){
+document.getElementById('trackBtn').textContent = on ? '⏹ Stop live location' : '\u{1F4CD} Start live location';
+if (msg) document.getElementById('trackStat').textContent = msg;
+}
+async function sendLoc(lat, lon, acc){
+const r = await api('POST', '/api/location', {lat, lon, acc});
+if (r){ lastSent = {t: Date.now(), lat, lon}; document.getElementById('trackStat').textContent = 'Sharing. Last update ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) + '.'; }
+}
+function autoCheck(lat, lon){
+if (busy) return;
+const li = lastChecked(), now = Date.now();
+for (let i = li + 1; i < Math.min(STOPS.length, li + 5); i++){
+const st = STOPS[i];
+if (typeof st.lat !== 'number' || (state.checkins || {})[st.id]) continue;
+if (Math.abs(now - planned(st)) > 14 * 3600000) continue;
+if (miles(lat, lon, st.lat, st.lon) * 1609 <= st.r){ checkIn(st.id, true); break; }
+}
+}
+function onPos(p){
+const {latitude: lat, longitude: lon, accuracy: acc} = p.coords;
+const moved = lastSent.t ? miles(lat, lon, lastSent.lat, lastSent.lon) * 1609 : Infinity;
+if (Date.now() - lastSent.t > 120000 || moved > 800) sendLoc(lat, lon, acc);
+autoCheck(lat, lon);
+}
+function onErr(e){
+if (e.code === 1){ stopTracking(); setTrackUI(false, 'Location is blocked. On iPhone: Settings, Privacy & Security, Location Services, Safari Websites, then While Using.'); }
+else document.getElementById('trackStat').textContent = 'Looking for a GPS signal…';
+}
+function startTracking(){
+if (!navigator.geolocation){ setTrackUI(false, 'This browser can’t share location.'); return; }
+if (watchId !== null) return;
+watchId = navigator.geolocation.watchPosition(onPos, onErr, {enableHighAccuracy: true, maximumAge: 30000, timeout: 60000});
+try { localStorage.setItem('track', '1'); } catch(_){}
+setTrackUI(true, 'Finding you…');
+}
+function stopTracking(){
+if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+watchId = null;
+try { localStorage.removeItem('track'); } catch(_){}
+setTrackUI(false, 'Live location is off.');
+}
+document.getElementById('trackBtn').onclick = async () => {
+if (watchId === null) startTracking();
+else { stopTracking(); await api('POST', '/api/location/off'); refresh(); }
+};
+async function wake(){
+const want = document.getElementById('wakeChk').checked;
+try {
+if (want && 'wakeLock' in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+if (!want && wakeLock){ await wakeLock.release(); wakeLock = null; }
+} catch(_){}
+if (want && !('wakeLock' in navigator)) toast('Your phone can’t keep the screen on from here. Set Auto-Lock to Never in Settings while driving.');
+}
+document.getElementById('wakeChk').onchange = wake;
+document.addEventListener('visibilitychange', () => { if (!document.hidden && document.getElementById('wakeChk').checked) wake(); });
+function maybeResumeTracking(){ let on = false; try { on = localStorage.getItem('track') === '1'; } catch(_){} if (on && canWrite) startTracking(); }
+/* ---------- Notifications ---------- */
+let pushKey = '', pickerReady = false, swReg = null;
+const PREF_OPTS = [
+['all', 'Every stop along the way'],
+['night', 'Settled in for the night'],
+['fun', 'Graceland and Nashville fun'],
+['bucees', "Buc-ee's stops"],
+['photos', 'New photos and videos'],
+['notes', 'Notes from Amy'],
+['home', 'Made it home'],
+];
+function savedPrefs(){ try { return JSON.parse(localStorage.getItem('prefs') || 'null') || ['night','fun','photos','notes','home']; } catch(_){ return ['night','fun','photos','notes','home']; } }
+function chosenPrefs(){ return [...document.querySelectorAll('#prefList input:checked')].map(i => i.value); }
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const urlB64 = b => { const p = '='.repeat((4 - b.length % 4) % 4); const r = atob((b + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+async function currentSub(){ if (!swReg) return null; try { return await swReg.pushManager.getSubscription(); } catch(_){ return null; } }
+async function setupNotify(){
+const list = document.getElementById('prefList'); list.replaceChildren();
+const have = savedPrefs();
+PREF_OPTS.forEach(([v, label]) => { const l = el('label'); const i = document.createElement('input'); i.type = 'checkbox'; i.value = v; i.checked = have.includes(v); i.onchange = onPrefChange; l.append(i, document.createTextNode(label)); list.append(l); });
+const stat = document.getElementById('notifyStat'), btn = document.getElementById('notifyBtn');
+if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)){
+btn.hidden = true;
+stat.textContent = isIOS && !installed ? 'On iPhone: tap the Share button, then Add to Home Screen. Open the site from that new icon, sign in, and turn notifications on here.' : 'This browser can’t do notifications. Try Chrome or Safari, or add the site to your Home Screen.';
+return;
+}
+if (!pushKey){ btn.hidden = true; stat.textContent = 'Notifications aren’t set up yet.'; return; }
+try { swReg = await navigator.serviceWorker.register('/sw.js'); } catch(_){}
+const sub = await currentSub();
+btn.textContent = sub ? '\u{1F515} Turn off notifications' : '\u{1F514} Turn on notifications';
+document.getElementById('notifyTest').hidden = !sub;
+stat.textContent = sub ? 'Notifications are on. Changes to your picks save automatically.' : '';
+}
+let prefTimer = null;
+function onPrefChange(){
+try { localStorage.setItem('prefs', JSON.stringify(chosenPrefs())); } catch(_){}
+clearTimeout(prefTimer);
+prefTimer = setTimeout(async () => { const sub = await currentSub(); if (sub){ await api('POST', '/api/push/subscribe', {sub: sub.toJSON(), prefs: chosenPrefs()}); toast('Saved your picks.'); } }, 600);
+}
+document.getElementById('notifyBtn').onclick = async () => {
+const stat = document.getElementById('notifyStat');
+if (!swReg) swReg = await navigator.serviceWorker.register('/sw.js').catch(() => null);
+if (!swReg){ stat.textContent = 'Couldn’t set up notifications on this phone.'; return; }
+let sub = await currentSub();
+if (sub){ await api('POST', '/api/push/unsubscribe', {endpoint: sub.endpoint}); await sub.unsubscribe().catch(() => {}); setupNotify(); toast('Notifications off.'); return; }
+const perm = await Notification.requestPermission();
+if (perm !== 'granted'){ stat.textContent = 'Notifications were blocked. You can allow them in your phone’s settings for this site.'; return; }
+try {
+await navigator.serviceWorker.ready;
+sub = await swReg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: urlB64(pushKey)});
+const r = await api('POST', '/api/push/subscribe', {sub: sub.toJSON(), prefs: chosenPrefs()});
+if (!r) throw new Error('save');
+toast('You’re on the list!'); setupNotify();
+} catch(_){ stat.textContent = 'Couldn’t turn on notifications. Try again in a moment.'; }
+};
+document.getElementById('notifyTest').onclick = async () => { const sub = await currentSub(); if (sub){ const r = await api('POST', '/api/push/test', {endpoint: sub.endpoint}); toast(r ? 'Test sent!' : 'Test didn’t go through.'); } };
+/* ---------- render + server ---------- */
+function render(){ if (!STOPS.length) return; const pos = renderStatus(); renderMoments(); renderLoc(); if (!selectedDay){ const idx = Math.max(pos, 0); const s = STOPS[Math.min(idx+1, STOPS.length-1)]; selectedDay = (pos>=0 ? STOPS[pos] : s).day; } renderTabs(); renderDay(); document.getElementById('ownerCard').hidden = !canWrite; document.getElementById('shareCard').hidden = false; document.getElementById('uplName').hidden = canWrite; document.getElementById('notifyCard').hidden = canWrite; }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('show'),2600); }
+async function api(method, url, body){
+try {
+const r = await fetch(url, {method, credentials:'same-origin', headers: body ? {'Content-Type':'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
+if (r.status === 401){ showLogin(); return null; }
+if (!r.ok) return null;
+return await r.json();
+} catch(_){ return null; }
+}
+let lastJSON = '';
+async function refresh(){
+const d = await api('GET', '/api/state');
+if (!d){ if (dbOk) { synced = false; renderStatus(); } return; }
+dbOk = true; synced = true;
+const wasWriter = canWrite; canWrite = d.role === 'amy';
+const j = JSON.stringify(d);
+if (j !== lastJSON || wasWriter !== canWrite){
+lastJSON = j;
+if (d.trip && Array.isArray(d.trip.stops)){ DAYS = d.trip.days; STOPS = d.trip.stops; TOTAL = d.trip.total || 1; document.getElementById('subtitle').textContent = d.trip.subtitle || ''; }
+loc = d.loc || null;
+state = {checkins: d.checkins || {}, note: d.note || null};
+moments = Array.isArray(d.moments) ? d.moments : [];
+pushKey = d.pushKey || '';
+if (!pickerReady || canWrite !== wasWriter){ pickerReady = true; fillStopPicker(); setupNotify(); }
+if (canWrite && !wasWriter) maybeResumeTracking();
+render();
+} else { renderStatus(); renderLoc(); }
+document.getElementById('login').hidden = true;
+}
+async function save(path, body, okMsg){
+if (busy) return; busy = true;
+const r = await api('POST', path, body);
+busy = false;
+if (r){ toast(okMsg); refresh(); } else toast('Couldn’t save. Check signal and try again.');
+}
+function checkIn(id, auto){ const st = STOPS.find(x => x.id === id); save('/api/checkin', {stopId:id}, auto ? 'Checked in automatically: ' + (st ? st.name : '') : id === 'home' ? 'Elvis has left the building! Welcome home.' : id === 'graceland' ? 'Welcome to Graceland!' : 'Thank you, thank you very much. Checked in!'); }
+function undo(id){ save('/api/undo', {stopId:id}, 'Check-in removed.'); }
+document.getElementById('saveNote').onclick = () => {
+const v = document.getElementById('noteInput').value.trim(); if (!v) return;
+save('/api/note', {text:v}, 'Note posted.'); document.getElementById('noteInput').value = '';
+};
+document.getElementById('clearNote').onclick = () => save('/api/note', {text:''}, 'Note cleared.');
+function showLogin(){ document.getElementById('login').hidden = false; setTimeout(() => document.getElementById('code').focus(), 50); }
+document.getElementById('loginForm').addEventListener('submit', async e => {
+e.preventDefault();
+const err = document.getElementById('loginErr'); err.textContent = '';
+try {
+const r = await fetch('/api/login', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: document.getElementById('code').value})});
+const j = await r.json().catch(() => ({}));
+if (!r.ok){ err.textContent = j.error || 'That passcode didn’t work.'; return; }
+document.getElementById('code').value = '';
+await refresh();
+} catch(_){ err.textContent = 'No connection. Try again in a moment.'; }
+});
+document.getElementById('logout').onclick = async () => { await api('POST', '/api/logout'); location.reload(); };
+document.getElementById('where').textContent = 'Warming up the band…';
+refresh();
+setInterval(refresh, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+</script>
+</body>
+</html>
