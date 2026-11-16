@@ -98,6 +98,8 @@ textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:1
 .lb .cap{color:#fff;font-size:15px;margin-top:12px;text-align:center;max-width:480px}
 .lb .meta{color:#aab3c8;font-size:12px;margin-top:4px}
 .lb .row{justify-content:center}
+.fan{padding:4px 0;color:var(--ink);font-size:14px}
+.fans-sum{font-weight:600;color:var(--ink);margin-bottom:4px}
 .field{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font:15px Inter,sans-serif;margin-top:8px;background:#fff}
 .prefs{display:grid;gap:8px}
 .prefs label{display:flex;gap:10px;align-items:center;font-size:15px;background:#faf3e2;border-radius:12px;padding:10px 12px}
@@ -209,6 +211,10 @@ box-shadow:0 4px 12px rgba(0,0,0,.5);animation:spin 2.4s linear infinite}
 <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px"><input type="checkbox" id="wakeChk"> Keep screen on (best on a car charger)</label>
 <div class="prog" id="trackStat">Live location is off.</div>
 </div>
+<div class="upl">
+<div class="label">Who's following</div>
+<div id="fans" class="prog">Nobody has signed in yet.</div>
+</div>
 </section>
 <section class="card" id="shareCard" hidden>
 <div class="dayhead"><h2>Add to the album</h2></div>
@@ -240,7 +246,8 @@ box-shadow:0 4px 12px rgba(0,0,0,.5);animation:spin 2.4s linear infinite}
 <form class="lcard" id="loginForm">
 <div class="eyebrow">Mom's 70th birthday road trip</div>
 <h1 style="margin:8px 0 6px">Welcome to the show</h1>
-<p style="color:var(--muted);font-size:15px;margin:0 0 14px">Enter the family passcode to follow along.</p>
+<p style="color:var(--muted);font-size:15px;margin:0 0 14px">Tell us who you are, then enter the family passcode.</p>
+<input id="who" type="text" autocomplete="given-name" placeholder="Your first name" aria-label="Your first name" maxlength="40" style="margin-bottom:8px">
 <input id="code" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode">
 <button class="btn here" style="width:100%;justify-content:center;margin-top:10px;padding:14px" type="submit">Take me to the show</button>
 <div id="loginErr" style="color:#b3261e;font-size:14px;margin-top:10px;min-height:18px"></div>
@@ -621,6 +628,17 @@ toast('You’re on the list!'); setupNotify();
 } catch(_){ stat.textContent = 'Couldn’t turn on notifications. Try again in a moment.'; }
 };
 document.getElementById('notifyTest').onclick = async () => { const sub = await currentSub(); if (sub){ const r = await api('POST', '/api/push/test', {endpoint: sub.endpoint}); toast(r ? 'Test sent!' : 'Test didn’t go through.'); } };
+async function loadFans(){
+const d = await api('GET', '/api/followers'); if (!d) return;
+const box = document.getElementById('fans'); box.replaceChildren();
+const v = d.viewers || [];
+if (!v.length){ box.textContent = 'Nobody has signed in yet.'; return; }
+const now = Date.now(), isOn = x => now - new Date(x.last_seen) < 3 * 60000;
+const live = v.filter(isOn).length;
+box.append(el('div', 'fans-sum', v.length + (v.length === 1 ? ' person' : ' people') + ' following · ' + live + ' watching now · ' + d.alerts + ' with alerts on'));
+v.forEach(x => { const on = isOn(x); box.append(el('div', 'fan', (on ? '🟢 ' : '⚪ ') + x.name + ' · ' + (on ? 'watching now' : 'last here ' + ago(new Date(x.last_seen))) + (x.alerts ? ' 🔔' : ''))); });
+}
+try { document.getElementById('who').value = localStorage.getItem('name') || ''; } catch(_){}
 /* ---------- render + server ---------- */
 function render(){ if (!STOPS.length) return; const pos = renderStatus(); renderMoments(); renderLoc(); if (!selectedDay){ const idx = Math.max(pos, 0); const s = STOPS[Math.min(idx+1, STOPS.length-1)]; selectedDay = (pos>=0 ? STOPS[pos] : s).day; } renderTabs(); renderDay(); document.getElementById('ownerCard').hidden = !canWrite; document.getElementById('shareCard').hidden = false; document.getElementById('uplName').hidden = canWrite; document.getElementById('notifyCard').hidden = canWrite; }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('show'),2600); }
@@ -646,11 +664,13 @@ loc = d.loc || null;
 state = {checkins: d.checkins || {}, note: d.note || null};
 moments = Array.isArray(d.moments) ? d.moments : [];
 pushKey = d.pushKey || '';
+if (d.me && d.me !== 'Family member' && !document.getElementById('uplName').value) document.getElementById('uplName').value = d.me;
 if (!pickerReady || canWrite !== wasWriter){ pickerReady = true; fillStopPicker(); setupNotify(); }
 if (canWrite && !wasWriter) maybeResumeTracking();
 render();
 } else { renderStatus(); renderLoc(); }
 document.getElementById('login').hidden = true;
+if (canWrite) loadFans();
 }
 async function save(path, body, okMsg){
 if (busy) return; busy = true;
@@ -670,10 +690,11 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
 e.preventDefault();
 const err = document.getElementById('loginErr'); err.textContent = '';
 try {
-const r = await fetch('/api/login', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: document.getElementById('code').value})});
+const r = await fetch('/api/login', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: document.getElementById('code').value, name: document.getElementById('who').value})});
 const j = await r.json().catch(() => ({}));
 if (!r.ok){ err.textContent = j.error || 'That passcode didn’t work.'; return; }
 document.getElementById('code').value = '';
+try { const w = document.getElementById('who').value.trim(); if (w) localStorage.setItem('name', w); } catch(_){}
 await refresh();
 } catch(_){ err.textContent = 'No connection. Try again in a moment.'; }
 });
