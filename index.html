@@ -533,7 +533,7 @@ if (Date.now() - lastSent.t > 120000 || moved > 800) sendLoc(lat, lon, acc);
 autoCheck(lat, lon);
 }
 function onErr(e){
-if (e.code === 1){ stopTracking(); setTrackUI(false, 'Location is blocked. On iPhone: Settings, Privacy & Security, Location Services, Safari Websites, then While Using.'); }
+if (e.code === 1){ stopTracking(); setTrackUI(false, 'Location is blocked. On iPhone open Settings, then Privacy & Security, then Location Services, and set Chrome (or Safari Websites) to While Using.'); }
 else document.getElementById('trackStat').textContent = 'Looking for a GPS signal…';
 }
 function startTracking(){
