@@ -601,15 +601,25 @@ return;
 if (!pushKey){ btn.hidden = true; stat.textContent = 'Notifications aren’t set up yet.'; return; }
 try { swReg = await navigator.serviceWorker.register('/sw.js'); } catch(_){}
 const sub = await currentSub();
+if (sub){ const m = await api('POST', '/api/push/mine', {endpoint: sub.endpoint}); if (m && Array.isArray(m.prefs)){ try { localStorage.setItem('prefs', JSON.stringify(m.prefs)); } catch(_){} list.querySelectorAll('input').forEach(i => { i.checked = m.prefs.includes(i.value); }); } }
 btn.textContent = sub ? '\u{1F515} Turn off notifications' : '\u{1F514} Turn on notifications';
 document.getElementById('notifyTest').hidden = !sub;
 stat.textContent = sub ? 'Notifications are on. Changes to your picks save automatically.' : '';
 }
-let prefTimer = null;
+let prefTimer = null, picksPending = false;
+async function savePicks(){
+const sub = await currentSub();
+if (!sub){ picksPending = false; toast('Picks saved. Tap Turn on notifications to start getting alerts.'); return; }
+let r = await api('POST', '/api/push/subscribe', {sub: sub.toJSON(), prefs: chosenPrefs()});
+if (!r){ await new Promise(ok => setTimeout(ok, 2500)); r = await api('POST', '/api/push/subscribe', {sub: sub.toJSON(), prefs: chosenPrefs()}); }
+picksPending = !r;
+toast(r ? 'Saved your picks.' : 'Couldn’t save your picks yet. We’ll keep trying.');
+document.getElementById('notifyStat').textContent = r ? 'Notifications are on. Your picks are saved.' : 'Your picks haven’t saved yet. Check your signal; we’ll try again automatically.';
+}
 function onPrefChange(){
 try { localStorage.setItem('prefs', JSON.stringify(chosenPrefs())); } catch(_){}
 clearTimeout(prefTimer);
-prefTimer = setTimeout(async () => { const sub = await currentSub(); if (sub){ await api('POST', '/api/push/subscribe', {sub: sub.toJSON(), prefs: chosenPrefs()}); toast('Saved your picks.'); } }, 600);
+prefTimer = setTimeout(savePicks, 600);
 }
 document.getElementById('notifyBtn').onclick = async () => {
 const stat = document.getElementById('notifyStat');
@@ -671,6 +681,7 @@ render();
 } else { renderStatus(); renderLoc(); }
 document.getElementById('login').hidden = true;
 if (canWrite) loadFans();
+if (picksPending) savePicks();
 }
 async function save(path, body, okMsg){
 if (busy) return; busy = true;
