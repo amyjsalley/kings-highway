@@ -23,6 +23,8 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL && !/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL) ? { rejectUnauthorized: false } : false,
 });
+pool.on('error', e => console.error('db idle error', e.message));
+process.on('unhandledRejection', e => console.error('unhandled', e && e.message));
 
 async function init() {
   await pool.query(`CREATE TABLE IF NOT EXISTS kv (key text PRIMARY KEY, value jsonb NOT NULL)`);
@@ -86,6 +88,8 @@ async function notify(topic, title, body) {
 let lastPhotoPing = 0;
 
 const app = express();
+const wrapAsync = fn => (req, res, next) => { try { const p = fn(req, res, next); if (p && p.catch) p.catch(next); } catch (e) { next(e); } };
+for (const m of ['get', 'post', 'delete']) { const orig = app[m].bind(app); app[m] = (first, ...hs) => hs.length ? orig(first, ...hs.map(h => typeof h === 'function' && h.length < 4 ? wrapAsync(h) : h)) : orig(first); }
 app.set('trust proxy', 1);
 app.use((req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); res.set('Referrer-Policy', 'no-referrer'); next(); });
 app.use(express.json({ limit: '20kb' }));
@@ -203,6 +207,10 @@ app.post('/api/push/subscribe', need('family'), async (req, res) => {
   await pool.query('INSERT INTO subs(endpoint, sub, prefs, viewer_id) VALUES($1,$2,$3,$4) ON CONFLICT(endpoint) DO UPDATE SET sub=EXCLUDED.sub, prefs=EXCLUDED.prefs, viewer_id=EXCLUDED.viewer_id', [sub.endpoint, JSON.stringify(sub), JSON.stringify(clean), req.vid || null]);
   res.json({ ok: true });
 });
+app.post('/api/push/mine', need('family'), async (req, res) => {
+  const r = await pool.query('SELECT prefs FROM subs WHERE endpoint=$1', [String((req.body && req.body.endpoint) || '')]);
+  res.json({ prefs: r.rows[0] ? r.rows[0].prefs : null });
+});
 app.post('/api/push/unsubscribe', need('family'), async (req, res) => {
   await pool.query('DELETE FROM subs WHERE endpoint=$1', [String((req.body && req.body.endpoint) || '')]);
   res.json({ ok: true });
@@ -230,7 +238,7 @@ app.get(Object.keys(STATIC), (req, res) => {
 });
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'That file is too big.' });
-  console.error(err); res.status(500).json({ error: 'Something went wrong.' });
+  console.error(err && err.message); if (res.headersSent) return; res.status(500).json({ error: 'Something went wrong. Try again in a moment.' });
 });
 
 init().then(() => app.listen(PORT, () => console.log('Trip site on ' + PORT)))
