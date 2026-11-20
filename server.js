@@ -35,6 +35,7 @@ async function init() {
   await pool.query(`CREATE TABLE IF NOT EXISTS subs (endpoint text PRIMARY KEY, sub jsonb NOT NULL, prefs jsonb NOT NULL, created timestamptz NOT NULL DEFAULT now())`);
   await pool.query(`CREATE TABLE IF NOT EXISTS viewers (id text PRIMARY KEY, name text NOT NULL, first_seen timestamptz NOT NULL DEFAULT now(), last_seen timestamptz NOT NULL DEFAULT now(), visits int NOT NULL DEFAULT 1)`);
   await pool.query(`ALTER TABLE subs ADD COLUMN IF NOT EXISTS viewer_id text`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS comments (id serial PRIMARY KEY, moment_id int, author text NOT NULL, text text NOT NULL, at timestamptz NOT NULL DEFAULT now())`);
 }
 async function getKV(key, fallback) {
   const r = await pool.query('SELECT value FROM kv WHERE key=$1', [key]);
@@ -70,15 +71,16 @@ function throttled(ip) {
 }
 
 // ---- push notifications ----
-const PREFS = ['all', 'night', 'fun', 'bucees', 'home', 'photos', 'notes'];
-async function notify(topic, title, body) {
+const PREFS = ['all', 'night', 'fun', 'bucees', 'home', 'photos', 'notes', 'messages'];
+async function notify(topic, title, body, exclude) {
   if (!VAPID_PUBLIC) return;
   try {
-    const r = await pool.query('SELECT endpoint, sub, prefs FROM subs');
+    const r = await pool.query('SELECT endpoint, sub, prefs, viewer_id FROM subs');
     const msg = JSON.stringify({ title, body });
     await Promise.all(r.rows.map(async row => {
       const p = row.prefs || [];
-      const stopTopic = !['photos', 'notes'].includes(topic);
+      if (exclude && row.viewer_id === exclude) return;
+      const stopTopic = !['photos', 'notes', 'messages'].includes(topic);
       if (!(p.includes(topic) || (stopTopic && p.includes('all')))) return;
       try { await webpush.sendNotification(row.sub, msg, { TTL: 3600 }); }
       catch (e) { if (e.statusCode === 404 || e.statusCode === 410) await pool.query('DELETE FROM subs WHERE endpoint=$1', [row.endpoint]); }
@@ -116,14 +118,15 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/logout', (req, res) => { res.set('Set-Cookie', 'trip=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'); res.json({ ok: true }); });
 
 app.get('/api/state', need('family'), async (req, res) => {
-  const [checkins, note, loc, ms] = await Promise.all([
+  const [checkins, note, loc, ms, cm] = await Promise.all([
     getKV('checkins', {}), getKV('note', null), getKV('loc', null),
     pool.query('SELECT id, kind, stop_id, caption, at, by_name FROM moments ORDER BY at'),
+    pool.query('SELECT id, moment_id, author, text, at FROM comments ORDER BY at DESC LIMIT 300'),
   ]);
   res.set('Cache-Control', 'no-store');
   let me = null;
   if (req.vid) { const u = await pool.query("UPDATE viewers SET visits = visits + CASE WHEN last_seen < now() - interval '30 minutes' THEN 1 ELSE 0 END, last_seen = now() WHERE id=$1 RETURNING name", [req.vid]); me = u.rows[0] ? u.rows[0].name : null; }
-  res.json({ role: req.role, me, trip: TRIP, loc, checkins, note, moments: ms.rows.map(r => ({ id: r.id, kind: r.kind, stopId: r.stop_id, caption: r.caption, at: r.at, by: r.by_name || 'Amy' })), pushKey: VAPID_PUBLIC });
+  res.json({ role: req.role, me, trip: TRIP, loc, checkins, note, moments: ms.rows.map(r => ({ id: r.id, kind: r.kind, stopId: r.stop_id, caption: r.caption, at: r.at, by: r.by_name || 'Amy' })), pushKey: VAPID_PUBLIC, comments: cm.rows.map(c => ({ id: c.id, momentId: c.moment_id, by: c.author, text: c.text, at: c.at })) });
 });
 
 const validStop = s => typeof s === 'string' && /^[a-z0-9-]{1,30}$/.test(s);
@@ -177,6 +180,7 @@ app.post('/api/moments', need('family'), (req, res, next) => {
 });
 app.delete('/api/moments/:id', need('amy'), async (req, res) => {
   await pool.query('DELETE FROM moments WHERE id=$1', [parseInt(req.params.id, 10) || 0]);
+  await pool.query('DELETE FROM comments WHERE moment_id=$1', [parseInt(req.params.id, 10) || 0]);
   res.json({ ok: true });
 });
 
@@ -200,6 +204,26 @@ app.get('/media/:id', need('family'), async (req, res) => {
   res.set('Content-Length', data.length).end(data);
 });
 
+const cTries = new Map();
+app.post('/api/comments', need('family'), async (req, res) => {
+  const now = Date.now(), t = (cTries.get(req.ip) || []).filter(x => now - x < 3600000);
+  if (req.role !== 'amy' && t.length >= 60) return res.status(429).json({ error: 'Slow down a little! Try again soon.' });
+  t.push(now); cTries.set(req.ip, t);
+  const text = String((req.body && req.body.text) || '').trim().slice(0, 500);
+  if (!text) return res.status(400).json({ error: 'Write something first.' });
+  const mid = parseInt(req.body && req.body.momentId, 10) || null;
+  let author = 'Family';
+  if (req.role === 'amy') author = 'Amy';
+  else if (req.vid) { const u = await pool.query('SELECT name FROM viewers WHERE id=$1', [req.vid]); if (u.rows[0]) author = u.rows[0].name; }
+  if (mid) { const m = await pool.query('SELECT 1 FROM moments WHERE id=$1', [mid]); if (!m.rows[0]) return res.status(404).json({ error: 'That photo is gone.' }); }
+  const r = await pool.query('INSERT INTO comments(moment_id, author, text) VALUES($1,$2,$3) RETURNING id', [mid, author, text]);
+  res.json({ id: r.rows[0].id });
+  notify('messages', mid ? author + ' commented on a photo' : 'Message from ' + author, text, req.vid);
+});
+app.delete('/api/comments/:id', need('amy'), async (req, res) => {
+  await pool.query('DELETE FROM comments WHERE id=$1', [parseInt(req.params.id, 10) || 0]);
+  res.json({ ok: true });
+});
 app.post('/api/push/subscribe', need('family'), async (req, res) => {
   const { sub, prefs } = req.body || {};
   if (!sub || typeof sub.endpoint !== 'string' || !/^https:\/\//.test(sub.endpoint) || !sub.keys) return res.status(400).json({ error: 'bad subscription' });
