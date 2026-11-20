@@ -92,12 +92,22 @@ textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:1
 .upl{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .upl select,.upl input[type=text]{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;font:15px Inter,sans-serif;margin-top:8px;background:#fff}
 .prog{font-size:13px;color:var(--muted);margin-top:8px}
-.lb{position:fixed;inset:0;background:rgba(10,14,26,.94);display:none;flex-direction:column;justify-content:center;align-items:center;padding:16px;z-index:10}
+.lb{position:fixed;inset:0;background:rgba(10,8,14,.985);display:none;flex-direction:column;justify-content:center;align-items:center;padding:16px;z-index:10}
 .lb.show{display:flex}
-.lb img,.lb video{max-width:100%;max-height:72vh;border-radius:12px}
+.lb img,.lb video{max-width:100%;max-height:55vh;border-radius:12px}
 .lb .cap{color:#fff;font-size:15px;margin-top:12px;text-align:center;max-width:480px}
 .lb .meta{color:#aab3c8;font-size:12px;margin-top:4px}
 .lb .row{justify-content:center}
+.msg{border-top:1px solid var(--line);padding:10px 0;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.msg b{display:block;font-size:13px;color:#c2186b}
+.msg small{color:var(--muted);font-size:12px;font-weight:400;margin-left:6px}
+.msg .x{float:right;background:none;border:0;color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline}
+.lbc{width:100%;max-width:480px;max-height:22vh;overflow:auto;margin-top:10px}
+.lbc .msg{color:#fff;border-color:rgba(255,255,255,.15)}
+.lbc .msg b{color:#f7dc84}
+.lbrow{display:flex;gap:8px;width:100%;max-width:480px;margin-top:8px}
+.lbrow input{flex:1;min-width:0;border-radius:12px;border:0;padding:10px;font:15px Inter,sans-serif}
+.m .cnt{position:absolute;right:6px;top:6px;background:rgba(18,10,22,.75);color:#fff;font-size:11px;border-radius:8px;padding:2px 6px}
 .fan{padding:4px 0;color:var(--ink);font-size:14px}
 .fans-sum{font-weight:600;color:var(--ink);margin-bottom:4px}
 .field{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font:15px Inter,sans-serif;margin-top:8px;background:#fff}
@@ -226,6 +236,13 @@ box-shadow:0 4px 12px rgba(0,0,0,.5);animation:spin 2.4s linear infinite}
 <input type="file" id="uplFile" accept="image/*,video/*" multiple hidden>
 <div class="prog" id="uplProg">Photos are resized automatically. Keep videos short, about 15 seconds.</div>
 </section>
+<section class="card" id="wallCard" hidden>
+<div class="dayhead"><h2>Messages for Mom &amp; Amy</h2></div>
+<p class="daysum">Send them a note, a joke or a birthday wish. Everyone with the passcode can see these.</p>
+<textarea id="wallInput" maxlength="500" placeholder="Happy birthday, Mom! Drive safe!"></textarea>
+<div class="row"><button class="btn here" id="wallSend">Send message</button></div>
+<div id="wallList"></div>
+</section>
 <section class="card" id="notifyCard" hidden>
 <div class="dayhead"><h2>Get notified</h2></div>
 <p class="daysum">Pick what you want a phone alert for.</p>
@@ -257,6 +274,8 @@ box-shadow:0 4px 12px rgba(0,0,0,.5);animation:spin 2.4s linear infinite}
 <div id="lbMedia"></div>
 <div class="cap" id="lbCap"></div>
 <div class="meta" id="lbMeta"></div>
+<div class="lbc" id="lbComments"></div>
+<div class="lbrow"><input id="lbInput" maxlength="500" placeholder="Add a comment" aria-label="Add a comment"><button class="btn here" id="lbSend">Send</button></div>
 <div class="row" style="margin-top:14px">
 <button class="btn ghost" id="lbClose">Close</button>
 <button class="btn ghost" id="lbDel" hidden>Remove</button>
@@ -394,12 +413,13 @@ if (x.by && x.by !== 'Amy') b.append(el('span','by', x.by));
 const i = document.createElement('img'); i.src = src; i.loading = 'lazy'; i.alt = x.caption || 'Photo from the trip'; i.onerror = miss; b.append(i);
 if (x.by && x.by !== 'Amy') b.append(el('span','by', x.by));
 }
+const n = countFor(x.id); if (n) b.append(el('span','cnt','💬 ' + n));
 b.onclick = () => openLb(x);
 return b;
 }
 let shownMoments = '';
 function renderMoments(){
-const key = moments.map(m => m.id).join(',');
+const key = moments.map(m => m.id + ':' + countFor(m.id)).join(',');
 if (key === shownMoments) return; shownMoments = key;
 const card = document.getElementById('momentsCard'), strip = document.getElementById('latest');
 card.hidden = moments.length === 0; strip.replaceChildren();
@@ -418,6 +438,7 @@ const s = stopById(x.stopId);
 document.getElementById('lbMeta').textContent = 'From ' + (x.by || 'Amy') + ' · ' + (s ? s.name + ' · ' : '') + (x.at ? yourTime(new Date(x.at)) : '');
 document.getElementById('lbDel').hidden = !canWrite;
 document.getElementById('lbConfirm').classList.remove('show');
+renderLbComments();
 document.getElementById('lb').classList.add('show');
 }
 function closeLb(){ document.getElementById('lb').classList.remove('show'); document.getElementById('lbMedia').replaceChildren(); lbItem = null; }
@@ -580,9 +601,10 @@ const PREF_OPTS = [
 ['bucees', "Buc-ee's stops"],
 ['photos', 'New photos and videos'],
 ['notes', 'Notes from Amy'],
+['messages', 'Messages and photo comments'],
 ['home', 'Made it home'],
 ];
-function savedPrefs(){ try { return JSON.parse(localStorage.getItem('prefs') || 'null') || ['night','fun','photos','notes','home']; } catch(_){ return ['night','fun','photos','notes','home']; } }
+function savedPrefs(){ try { return JSON.parse(localStorage.getItem('prefs') || 'null') || ['night','fun','photos','notes','messages','home']; } catch(_){ return ['night','fun','photos','notes','messages','home']; } }
 function chosenPrefs(){ return [...document.querySelectorAll('#prefList input:checked')].map(i => i.value); }
 const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -649,8 +671,38 @@ box.append(el('div', 'fans-sum', v.length + (v.length === 1 ? ' person' : ' peop
 v.forEach(x => { const on = isOn(x); box.append(el('div', 'fan', (on ? '🟢 ' : '⚪ ') + x.name + ' · ' + (on ? 'watching now' : 'last here ' + ago(new Date(x.last_seen))) + (x.alerts ? ' 🔔' : ''))); });
 }
 try { document.getElementById('who').value = localStorage.getItem('name') || ''; } catch(_){}
+/* ---------- Messages and comments ---------- */
+let comments = [];
+const countFor = id => comments.filter(c => c.momentId === id).length;
+function msgEl(c){
+const d = el('div','msg'); const h = el('b', null, c.by || 'Family'); h.append(el('small', null, ago(new Date(c.at))));
+if (canWrite){ const x = el('button','x','Remove'); x.onclick = async () => { if (await api('DELETE', '/api/comments/' + c.id)){ toast('Removed.'); refresh(); } }; d.append(x); }
+d.append(h, document.createTextNode(c.text));
+return d;
+}
+function renderWall(){
+document.getElementById('wallCard').hidden = false;
+const list = document.getElementById('wallList'); list.replaceChildren();
+const w = comments.filter(c => !c.momentId);
+if (!w.length) list.append(el('div','prog','No messages yet. Be the first!'));
+w.slice(0, 50).forEach(c => list.append(msgEl(c)));
+}
+function renderLbComments(){
+if (!lbItem) return;
+const box = document.getElementById('lbComments'); box.replaceChildren();
+comments.filter(c => c.momentId === lbItem.id).reverse().forEach(c => box.append(msgEl(c)));
+}
+async function sendComment(text, momentId){
+const v = text.trim(); if (!v) return false;
+const r = await api('POST', '/api/comments', {text: v, momentId: momentId || null});
+if (r){ toast(momentId ? 'Comment added!' : 'Message sent! Thank you, thank you very much.'); refresh(); return true; }
+toast('Couldn\u2019t send. Check your signal and try again.'); return false;
+}
+document.getElementById('wallSend').onclick = async () => { const i = document.getElementById('wallInput'); if (await sendComment(i.value)) i.value = ''; };
+document.getElementById('lbSend').onclick = async () => { const i = document.getElementById('lbInput'); if (lbItem && await sendComment(i.value, lbItem.id)) i.value = ''; };
+document.getElementById('lbInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('lbSend').click(); });
 /* ---------- render + server ---------- */
-function render(){ if (!STOPS.length) return; const pos = renderStatus(); renderMoments(); renderLoc(); if (!selectedDay){ const idx = Math.max(pos, 0); const s = STOPS[Math.min(idx+1, STOPS.length-1)]; selectedDay = (pos>=0 ? STOPS[pos] : s).day; } renderTabs(); renderDay(); document.getElementById('ownerCard').hidden = !canWrite; document.getElementById('shareCard').hidden = false; document.getElementById('uplName').hidden = canWrite; document.getElementById('notifyCard').hidden = canWrite; }
+function render(){ if (!STOPS.length) return; const pos = renderStatus(); renderMoments(); renderLoc(); if (!selectedDay){ const idx = Math.max(pos, 0); const s = STOPS[Math.min(idx+1, STOPS.length-1)]; selectedDay = (pos>=0 ? STOPS[pos] : s).day; } renderTabs(); renderDay(); document.getElementById('ownerCard').hidden = !canWrite; document.getElementById('shareCard').hidden = false; document.getElementById('uplName').hidden = canWrite; document.getElementById('notifyCard').hidden = false; renderWall(); if (lbItem) renderLbComments(); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('show'),2600); }
 async function api(method, url, body){
 try {
@@ -673,6 +725,7 @@ if (d.trip && Array.isArray(d.trip.stops)){ DAYS = d.trip.days; STOPS = d.trip.s
 loc = d.loc || null;
 state = {checkins: d.checkins || {}, note: d.note || null};
 moments = Array.isArray(d.moments) ? d.moments : [];
+comments = Array.isArray(d.comments) ? d.comments : [];
 pushKey = d.pushKey || '';
 if (d.me && d.me !== 'Family member' && !document.getElementById('uplName').value) document.getElementById('uplName').value = d.me;
 if (!pickerReady || canWrite !== wasWriter){ pickerReady = true; fillStopPicker(); setupNotify(); }
